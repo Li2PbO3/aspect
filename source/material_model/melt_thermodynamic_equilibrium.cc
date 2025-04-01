@@ -75,6 +75,38 @@ namespace aspect
     //   return melt_fraction;
     // }
 
+    // for convenience, we define functions
+    // for melting lines and equilibrium constants
+
+    template <int dim>
+    double
+    MeltThermodynamicEquilibrium<dim>::
+    temperature_melting (const double pressure,
+                         const double temperature_m_0,
+                         const double coefficient_A,
+                         const double coefficient_B) const
+    {
+      // T_m = T_m_0 + A * P + B * P^2
+      return temperature_m_0
+             + coefficient_A * pressure
+             + coefficient_B * pressure * pressure;
+    }
+    
+    template <int dim>
+    double
+    MeltThermodynamicEquilibrium<dim>::
+    equilibrium_constant (const double pressure,
+                          const double temperature,
+                          const double latent_heat,
+                          const double tuning_parameter
+                          const double _T_m) const
+    {
+      // K = exp((L / r) * (1 / T - 1 / T_m))
+      return std::exp((latent_heat / tuning_parameter)
+             * (1.0 / temperature
+                - 1.0 / _T_m));
+    }
+
     template <int dim>
     double
     MeltThermodynamicEquilibrium<dim>::
@@ -89,6 +121,28 @@ namespace aspect
       double inner_melt_fraction = 0.0;
       double per_bulk = (1 - old_melt_fraction) * per_sol + old_melt_fraction * per_liq;
       double c_per_bulk = (1 - old_melt_fraction) * c_per_sol + old_melt_fraction * c_per_liq;
+      double melting_point_per = temperature_melting(pressure,
+                                                  melting_point_0_peridotite,
+                                                  melting_line_coefficient_A_peridotite,
+                                                  melting_line_coefficient_B_peridotite);
+      double melting_point_c_per = temperature_melting(pressure,
+                                                  melting_point_0_carbonated_peridotite,
+                                                  melting_line_coefficient_A_carbonated_peridotite,
+                                                  melting_line_coefficient_B_carbonated_peridotite);
+      double equilibrium_constant_per = equilibrium_constant(pressure,
+                                                  temperature,
+                                                  latent_heat_peridotite,
+                                                  tuning_parameter_peridotite,
+                                                  melting_point_per);
+      double equilibrium_constant_c_per = equilibrium_constant(pressure,
+                                                  temperature,
+                                                  latent_heat_carbonated_peridotite,
+                                                  tuning_parameter_carbonated_peridotite,
+                                                  melting_point_c_per);
+      
+      // now we are going to describe an equation about the melt fraction "f"
+      // and find its root as the melt fraction
+      // we gonna difine a lambda function and use the methods in deal.ii
 
       return inner_melt_fraction;
     }
@@ -343,7 +397,7 @@ namespace aspect
     {
       prm.enter_subsection("Material model");
       {
-        prm.enter_subsection("Melt global");
+        prm.enter_subsection("Melt thermodynamic equilibrium");
         {
           prm.declare_entry ("Reference solid density", "3000.",
                              Patterns::Double (0.),
@@ -475,7 +529,7 @@ namespace aspect
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\joule\\per\\kilogram}" // description
                             )
-          prm.declare_entry ("Tuning parameter for peridotit", // name
+          prm.declare_entry ("Tuning parameter for peridotite", // name
                              "50", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}" // description
@@ -651,7 +705,7 @@ namespace aspect
     {
       prm.enter_subsection("Material model");
       {
-        prm.enter_subsection("Melt global");
+        prm.enter_subsection("Melt thermodynamic equilibrium");
         {
           reference_rho_s                   = prm.get_double ("Reference solid density");
           reference_rho_f                   = prm.get_double ("Reference melt density");
@@ -660,25 +714,32 @@ namespace aspect
           xi_0                              = prm.get_double ("Reference bulk viscosity");
           eta_f                             = prm.get_double ("Reference melt viscosity");
           reference_permeability            = prm.get_double ("Reference permeability");
+          reference_specific_heat           = prm.get_double ("Reference specific heat");
+
           thermal_viscosity_exponent        = prm.get_double ("Thermal viscosity exponent");
           thermal_bulk_viscosity_exponent   = prm.get_double ("Thermal bulk viscosity exponent");
-          thermal_conductivity              = prm.get_double ("Thermal conductivity");
-          reference_specific_heat           = prm.get_double ("Reference specific heat");
           thermal_expansivity               = prm.get_double ("Thermal expansion coefficient");
           alpha_phi                         = prm.get_double ("Exponential melt weakening factor");
-          depletion_density_change          = prm.get_double ("Depletion density change");
-          surface_solidus                   = prm.get_double ("Surface solidus");
-          depletion_solidus_change          = prm.get_double ("Depletion solidus change");
-          pressure_solidus_change           = prm.get_double ("Pressure solidus change");
           compressibility                   = prm.get_double ("Solid compressibility");
           melt_compressibility              = prm.get_double ("Melt compressibility");
+
+          thermal_conductivity              = prm.get_double ("Thermal conductivity");
           include_melting_and_freezing      = prm.get_bool ("Include melting and freezing");
           melting_time_scale                = prm.get_double ("Melting time scale for operator splitting");
-          alpha_depletion                   = prm.get_double ("Exponential depletion strengthening factor");
-          delta_eta_depletion_max           = prm.get_double ("Maximum Depletion viscosity change");
+
+          melting_point_0_peridotite = prm.get_double ("Melting point for peridotite at surface");
+          melting_point_0_carbonated_peridotite = prm.get_double ("Melting point for carbonated peridotite at surface");
+          melting_line_coefficient_A_peridotite = prm.get_double ("Melting line coefficient A for peridotite");
+          melting_line_coefficient_A_carbonated_peridotite = prm.get_double ("Melting line coefficient A for carbonated peridotite");
+          melting_line_coefficient_B_peridotite = prm.get_double ("Melting line coefficient B for peridotite");
+          melting_line_coefficient_B_carbonated_peridotite = prm.get_double ("Melting line coefficient B for carbonated peridotite");
+          latent_heat_peridotite = prm.get_double ("Latent heat for peridotite");
+          latent_heat_carbonated_peridotite = prm.get_double ("Latent heat for carbonated peridotite");
+          tuning_parameter_peridotite = prm.get_double ("Tuning parameter for peridotite");
+          tuning_parameter_carbonated_peridotite = prm.get_double ("Tuning parameter for carbonated peridotite");
 
           if (thermal_viscosity_exponent!=0.0 && reference_T == 0.0)
-            AssertThrow(false, ExcMessage("Error: Material model Melt global with Thermal viscosity exponent can not have reference_T=0."));
+            AssertThrow(false, ExcMessage("Error: Material model Melt thermodynamic equilibrium with Thermal viscosity exponent can not have reference_T=0."));
 
           if (this->convert_output_to_years() == true)
             melting_time_scale *= year_in_seconds;
@@ -695,14 +756,14 @@ namespace aspect
               AssertThrow(melting_time_scale > 0,
                           ExcMessage("The Melting time scale for operator splitting must be larger than 0!"));
               AssertThrow(this->introspection().compositional_name_exists("porosity"),
-                          ExcMessage("Material model Melt global with melt transport only "
+                          ExcMessage("Material model Melt thermodynamic equilibrium with melt transport only "
                                      "works if there is a compositional field called porosity."));
             }
 
           if (this->include_melt_transport())
             {
               AssertThrow(this->introspection().compositional_name_exists("porosity"),
-                          ExcMessage("Material model Melt global with melt transport only "
+                          ExcMessage("Material model Melt thermodynamic equilibrium with melt transport only "
                                      "works if there is a compositional field called porosity."));
               if (include_melting_and_freezing)
                 {

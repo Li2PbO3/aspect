@@ -137,7 +137,35 @@ namespace aspect
         double melting_time_scale;
 
         // quantities about melting process
-        
+
+        // firstly the melting lines for virtual compositions
+        // T_m(P) = T_m_0 + A * P + B * P^2
+
+        // T_m_0
+        double melting_point_0_peridotite; 
+        double melting_point_0_carbonated_peridotite;
+
+        // A
+        double melting_line_coefficient_A_peridotite;
+        double melting_line_coefficient_A_carbonated_peridotite;
+
+        // B
+        double melting_line_coefficient_B_peridotite;
+        double melting_line_coefficient_B_carbonated_peridotite;
+
+        // secondly the quantities in equilibrium constant
+        // K = c_sol / c_liq
+        //   = exp((L / r) * (1 / T - 1 / T_m))
+
+        // L
+        double latent_heat_peridotite;
+        double latent_heat_carbonated_peridotite;
+
+        // r
+        double tuning_parameter_peridotite;
+        double tuning_parameter_carbonated_peridotite;
+        // The physical meaning of this tuning parameter is not clear enough, 
+        // and it is roughly the "effective gas constant" of a certain virtual component.
         
 
         // old variables from "melt_global" model
@@ -177,6 +205,21 @@ namespace aspect
         //                const double pressure,
         //                const double depletion) const;
         
+        virtual
+        double
+        temperature_melting (const double pressure,
+                             const double temperature_m_0,
+                             const double coefficient_A,
+                             const double coefficient_B) const
+
+        virtual
+        double
+        equilibrium_constant (const double pressure,
+                              const double temperature,
+                              const double latent_heat,
+                              const double tuning_parameter
+                              const double _T_m) const;
+
         virtual
         double
         melt_fraction (const double temperature,
