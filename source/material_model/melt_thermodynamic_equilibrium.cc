@@ -72,7 +72,7 @@ namespace aspect
       return melt_fraction;
     }
 
-
+    // this function is not being used in the current implementation actually...
     template <int dim>
     void
     MeltThermodynamicEquilibrium<dim>::
