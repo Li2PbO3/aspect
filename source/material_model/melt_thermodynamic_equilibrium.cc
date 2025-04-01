@@ -370,9 +370,15 @@ namespace aspect
           prm.declare_entry ("Reference melt viscosity", "10.",
                              Patterns::Double (0.),
                              "The value of the constant melt viscosity $\\eta_f$. Units: \\si{\\pascal\\second}.");
-          prm.declare_entry ("Exponential melt weakening factor", "27.",
-                             Patterns::Double (0.),
-                             "The porosity dependence of the viscosity. Units: dimensionless.");
+          prm.declare_entry ("Reference specific heat", "1250.",
+                              Patterns::Double (0.),
+                              "The value of the specific heat $C_p$. "
+                              "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}.");
+          prm.declare_entry ("Reference permeability", "1e-8",
+                                Patterns::Double(),
+                                "Reference permeability of the solid host rock."
+                                "Units: \\si{\\meter\\squared}.");
+
           prm.declare_entry ("Thermal viscosity exponent", "0.0",
                              Patterns::Double (0.),
                              "The temperature dependence of the shear viscosity. Dimensionless exponent. "
@@ -385,60 +391,26 @@ namespace aspect
                              "See the general documentation "
                              "of this model for a formula that states the dependence of the "
                              "viscosity on this factor, which is called $\\beta$ there.");
+          prm.declare_entry ("Exponential melt weakening factor", "27.",
+                              Patterns::Double (0.),
+                              "The porosity dependence of the viscosity. Units: dimensionless.");
+          prm.declare_entry ("Thermal expansion coefficient", "2e-5",
+                                Patterns::Double (0.),
+                                "The value of the thermal expansion coefficient $\\beta$. "
+                                "Units: \\si{\\per\\kelvin}.");
+          prm.declare_entry ("Solid compressibility", "0.0",
+                                  Patterns::Double (0.),
+                                  "The value of the compressibility of the solid matrix. "
+                                  "Units: \\si{\\per\\pascal}.");
+          prm.declare_entry ("Melt compressibility", "0.0",
+                                  Patterns::Double (0.),
+                                  "The value of the compressibility of the melt. "
+                                  "Units: \\si{\\per\\pascal}.");
+
           prm.declare_entry ("Thermal conductivity", "4.7",
                              Patterns::Double (0.),
                              "The value of the thermal conductivity $k$. "
                              "Units: \\si{\\watt\\per\\meter\\per\\kelvin}.");
-          prm.declare_entry ("Reference specific heat", "1250.",
-                             Patterns::Double (0.),
-                             "The value of the specific heat $C_p$. "
-                             "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}.");
-          prm.declare_entry ("Thermal expansion coefficient", "2e-5",
-                             Patterns::Double (0.),
-                             "The value of the thermal expansion coefficient $\\beta$. "
-                             "Units: \\si{\\per\\kelvin}.");
-          prm.declare_entry ("Reference permeability", "1e-8",
-                             Patterns::Double(),
-                             "Reference permeability of the solid host rock."
-                             "Units: \\si{\\meter\\squared}.");
-          prm.declare_entry ("Depletion density change", "0.0",
-                             Patterns::Double (),
-                             "The density contrast between material with a depletion of 1 and a "
-                             "depletion of zero. Negative values indicate lower densities of "
-                             "depleted material. Depletion is indicated by the compositional "
-                             "field with the name peridotite. Not used if this field does not "
-                             "exist in the model. "
-                             "Units: \\si{\\kilogram\\per\\meter\\cubed}.");
-          prm.declare_entry ("Surface solidus", "1300.",
-                             Patterns::Double (0.),
-                             "Solidus for a pressure of zero. "
-                             "Units: \\si{\\kelvin}.");
-          prm.declare_entry ("Depletion solidus change", "200.0",
-                             Patterns::Double (),
-                             "The solidus temperature change for a depletion of 100\\%. For positive "
-                             "values, the solidus gets increased for a positive peridotite field "
-                             "(depletion) and lowered for a negative peridotite field (enrichment). "
-                             "Scaling with depletion is linear. Only active when fractional melting "
-                             "is used. "
-                             "Units: \\si{\\kelvin}.");
-          prm.declare_entry ("Pressure solidus change", "6e-8",
-                             Patterns::Double (),
-                             "The linear solidus temperature change with pressure. For positive "
-                             "values, the solidus gets increased for positive pressures. "
-                             "Units: \\si{\\per\\pascal}.");
-          prm.declare_entry ("Solid compressibility", "0.0",
-                             Patterns::Double (0.),
-                             "The value of the compressibility of the solid matrix. "
-                             "Units: \\si{\\per\\pascal}.");
-          prm.declare_entry ("Melt compressibility", "0.0",
-                             Patterns::Double (0.),
-                             "The value of the compressibility of the melt. "
-                             "Units: \\si{\\per\\pascal}.");
-          prm.declare_entry ("Melt bulk modulus derivative", "0.0",
-                             Patterns::Double (0.),
-                             "The value of the pressure derivative of the melt bulk "
-                             "modulus. "
-                             "Units: None.");
           prm.declare_entry ("Include melting and freezing", "true",
                              Patterns::Bool (),
                              "Whether to include melting and freezing (according to a simplified "
@@ -462,24 +434,57 @@ namespace aspect
                              "computed. If the model does not use operator splitting, this parameter is not used. "
                              "Units: yr or s, depending on the ``Use years "
                              "in output instead of seconds'' parameter.");
-          prm.declare_entry ("Exponential depletion strengthening factor", "0.0",
-                             Patterns::Double (0.),
-                             "$\\alpha_F$: exponential dependency of viscosity on the depletion "
-                             "field $F$ (called peridotite). "
-                             "Dimensionless factor. With a value of 0.0 (the default) the "
-                             "viscosity does not depend on the depletion. The effective viscosity increase"
-                             "due to depletion is defined as $std::exp( \\alpha_F * F)$. "
-                             "Rationale: melting dehydrates the source rock by removing most of the volatiles,"
-                             "and makes it stronger. Hirth and Kohlstedt (1996) report typical values around a "
-                             "factor 100 to 1000 viscosity contrast between wet and dry rocks, although some "
-                             "experimental studies report a smaller (factor 10) contrast (e.g. Fei et al., 2013).");
-          prm.declare_entry ("Maximum Depletion viscosity change", "1.0e3",
-                             Patterns::Double (0.),
-                             "$\\Delta \\eta_{F,max}$: maximum depletion strengthening of viscosity. "
-                             "Rationale: melting dehydrates the source rock by removing most of the volatiles,"
-                             "and makes it stronger. Hirth and Kohlstedt (1996) report typical values around a "
-                             "factor 100 to 1000 viscosity contrast between wet and dry rocks, although some "
-                             "experimental studies report a smaller (factor 10) contrast (e.g. Fei et al., 2013).");
+        
+          prm.declare_entry ("Melting point for peridotite at surface", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )
+          prm.declare_entry ("Melting point for carbonated peridotite at surface", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )
+          prm.declare_entry ("Melting line coefficient A for peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )  
+          prm.declare_entry ("Melting line coefficient A for carbonated peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            ) 
+          prm.declare_entry ("Melting line coefficient B for peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )
+          prm.declare_entry ("Melting line coefficient B for carbonated peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )  
+          prm.declare_entry ("Latent heat for peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )
+          prm.declare_entry ("Latent heat for carbonated peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )
+          prm.declare_entry ("Tuning parameter for peridotit", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )  
+          prm.declare_entry ("Tuning parameter for carbonated peridotite", // name
+                             "", // default value
+                             Patterns::Double (0.), // pattern
+                             "" // description
+                            )                                                                                                       
         }
         prm.leave_subsection();
       }
@@ -701,9 +706,19 @@ namespace aspect
                                      "works if there is a compositional field called porosity."));
               if (include_melting_and_freezing)
                 {
-                  AssertThrow(this->introspection().compositional_name_exists("peridotite"),
-                              ExcMessage("Material model Melt global only works if there is a "
-                                         "compositional field called peridotite."));
+                  // check existence of 4 compositional fields
+                  AssertThrow(this->introspection().compositional_name_exists("peridotite_solid"),
+                              ExcMessage("Material model Melt thermodynamic equilibrium only works if there is a "
+                                         "compositional field called peridotite_solid."));
+                  AssertThrow(this->introspection().compositional_name_exists("carbonated_peridotite_solid"),
+                              ExcMessage("Material model Melt thermodynamic equilibrium only works if there is a "
+                                         "compositional field called carbonated_peridotite_solid."));
+                  AssertThrow(this->introspection().compositional_name_exists("peridotite_liquid"),
+                              ExcMessage("Material model Melt thermodynamic equilibrium only works if there is a "
+                                         "compositional field called peridotite_liquid."));
+                  AssertThrow(this->introspection().compositional_name_exists("carbonated_peridotite_liquid"),
+                              ExcMessage("Material model Melt thermodynamic equilibrium only works if there is a "
+                                         "compositional field called carbonated_peridotite_liquid."));
                 }
             }
 
