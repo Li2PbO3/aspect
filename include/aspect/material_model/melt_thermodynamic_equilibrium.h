@@ -109,38 +109,84 @@ namespace aspect
 
 
       private:
+        /**
+         * we need some new variable now.
+         */
+        // reference quantities
         double reference_rho_s;
         double reference_rho_f;
         double reference_T;
         double eta_0;
         double xi_0;
         double eta_f;
+        double reference_permeability;
+        double reference_specific_heat;
+        
+        // quantities that control the quantities 
+        // changing with p, T, and phi
         double thermal_viscosity_exponent;
         double thermal_bulk_viscosity_exponent;
         double thermal_expansivity;
-        double reference_specific_heat;
-        double thermal_conductivity;
-        double reference_permeability;
         double alpha_phi;
-        double depletion_density_change;
-        double depletion_solidus_change;
-        double pressure_solidus_change;
-        double surface_solidus;
         double compressibility;
         double melt_compressibility;
+        
+        // quantities that do not change
+        double thermal_conductivity;       
         bool include_melting_and_freezing;
         double melting_time_scale;
-        double alpha_depletion;
-        double delta_eta_depletion_max;
 
-        // entropy change upon melting
-        double peridotite_melting_entropy_change;
+        // quantities about melting process
+        
+        
 
+        // old variables from "melt_global" model
+        // we keep them as comments for now
+        // double reference_rho_s;
+        // double reference_rho_f;
+        // double reference_T;
+        // double eta_0;
+        // double xi_0;
+        // double eta_f;
+        // double thermal_viscosity_exponent;
+        // double thermal_bulk_viscosity_exponent;
+        // double thermal_expansivity;
+        // double reference_specific_heat;
+        // double thermal_conductivity;
+        // double reference_permeability;
+        // double alpha_phi;
+        // double depletion_density_change;
+        // double depletion_solidus_change;
+        // double pressure_solidus_change;
+        // double surface_solidus;
+        // double compressibility;
+        // double melt_compressibility;
+        // bool include_melting_and_freezing;
+        // double melting_time_scale;
+        // double alpha_depletion;
+        // double delta_eta_depletion_max;
+
+        // // entropy change upon melting
+        // double peridotite_melting_entropy_change;
+        
+        // the old declaration of the melt fraction function
+        // we comment it out as we do in the source file
+        // virtual
+        // double
+        // melt_fraction (const double temperature,
+        //                const double pressure,
+        //                const double depletion) const;
+        
         virtual
         double
         melt_fraction (const double temperature,
                        const double pressure,
-                       const double depletion) const;
+                       const double old_melt_fraction,
+                       const double per_sol,
+                       const double c_per_sol,
+                       const double per_liq,
+                       const double c_per_liq) const;
+
     };
 
   }
