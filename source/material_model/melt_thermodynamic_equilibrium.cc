@@ -110,17 +110,13 @@ namespace aspect
     template <int dim>
     double
     MeltThermodynamicEquilibrium<dim>::
-    melt_fraction (const double temperature,
+    solve_eq_melt_fraction (const double temperature,
                    const double pressure,
                    const double old_melt_fraction,
-                   const double per_sol,
-                   const double c_per_sol,
-                   const double per_liq,
-                   const double c_per_liq) const
+                   const double per_bulk,
+                   const double c_per_bulk) const
     {
       double inner_melt_fraction = 0.0;
-      double per_bulk = (1 - old_melt_fraction) * per_sol + old_melt_fraction * per_liq;
-      double c_per_bulk = (1 - old_melt_fraction) * c_per_sol + old_melt_fraction * c_per_liq;
       double melting_point_per = temperature_melting(pressure,
                                                   melting_point_0_peridotite,
                                                   melting_line_coefficient_A_peridotite,
@@ -147,6 +143,25 @@ namespace aspect
       return inner_melt_fraction;
     }
 
+    template <int dim>
+    double
+    MeltThermodynamicEquilibrium<dim>::
+    calculate_concentration_solid (const double c_bulk,
+                                    const double f, // melt fraction
+                                    const double eq_const) const
+    {
+      return c_bulk / ((f / eq_const) + (1 - f));
+    }
+    template <int dim>
+    double
+    MeltThermodynamicEquilibrium<dim>::
+    calculate_concentration_liquid (const double c_bulk,
+                                   const double f, // melt fraction
+                                   const double eq_const) const
+    {
+      return c_bulk / (f + (1 - f) * eq_const);
+    }
+
     // this function is not being used in the current implementation actually...
     // template <int dim>
     // void
@@ -155,7 +170,7 @@ namespace aspect
     //                 std::vector<double> &melt_fractions) const
     // {
     //   double depletion = 0.0;
-
+    //
     //   for (unsigned int q=0; q<in.n_evaluation_points(); ++q)
     //     {
     //       if (this->include_melt_transport())
@@ -170,6 +185,67 @@ namespace aspect
     //     }
     // }
 
+    // However, there have to be a function named melt_fractions
+    // because the base class has this function declared as a pure virtual function
+    // and we have to implement it
+    template <int dim>
+    void
+    MeltThermodynamicEquilibrium<dim>::
+    melt_fractions (const MaterialModel::MaterialModelInputs<dim> &in,
+                    std::vector<double> &melt_fractions) const
+    {
+      std::vector<double> old_porosity(in.n_evaluation_points());
+      // we want to get the porosity field from the old solution here,
+      // because we need a field that is not updated in the nonlinear iterations
+      if (this->include_melt_transport() && in.current_cell.state() == IteratorState::valid
+          && this->get_timestep_number() > 0 && !this->get_parameters().use_operator_splitting)
+        {
+          // Prepare the field function
+
+          Functions::FEFieldFunction<dim, LinearAlgebra::BlockVector>
+
+          fe_value(this->get_dof_handler(), this->get_old_solution(), this->get_mapping());
+
+          const unsigned int porosity_idx = this->introspection().compositional_index_for_name("porosity");
+
+          fe_value.set_active_cell(in.current_cell);
+          fe_value.value_list(in.position,
+                              old_porosity,
+                              this->introspection().component_indices.compositional_fields[porosity_idx]);
+        }
+
+      for (unsigned int q=0; q<in.n_evaluation_points(); ++q)
+        {
+          if (this->get_parameters().use_operator_splitting)
+            {
+              const unsigned int porosity_idx = this->introspection().compositional_index_for_name("porosity");
+              old_porosity[q] = in.composition[q][porosity_idx];
+            }
+ 
+          if (this->include_melt_transport())
+            {
+              const unsigned int porosity_idx = this->introspection().compositional_index_for_name("porosity");
+              const unsigned int peridotite_solid_idx = this->introspection().compositional_index_for_name("peridotite_solid");
+              const unsigned int carbonated_peridotite_solid_idx = this->introspection().compositional_index_for_name("carbonated_peridotite_solid");
+              const unsigned int peridotite_liquid_idx = this->introspection().compositional_index_for_name("peridotite_liquid");
+              const unsigned int carbonated_peridotite_liquid_idx = this->introspection().compositional_index_for_name("carbonated_peridotite_liquid");
+              const double old_melt_fraction = old_porosity[q];
+              const double peridotite_bulk = (1 - old_melt_fraction) * in.composition[q][peridotite_solid_idx] 
+                                           + old_melt_fraction * in.composition[q][peridotite_liquid_idx];
+              const double carbonated_peridotite_bulk = (1 - old_melt_fraction) * in.composition[q][carbonated_peridotite_solid_idx] 
+                                                      + old_melt_fraction * in.composition[q][carbonated_peridotite_liquid_idx];
+              melt_fractions[q] = this->solve_eq_melt_fraction(in.temperature[q],
+                                                               std::max(0.0, in.pressure[q]),
+                                                               old_melt_fraction,
+                                                               peridotite_bulk,
+                                                               carbonated_peridotite_bulk);
+            }
+          else
+            {
+              melt_fractions[q] = 0.0;
+            }
+        }
+    }
 
     template <int dim>
     void
@@ -216,14 +292,17 @@ namespace aspect
           else
             temperature_dependence -= (in.temperature[i] - reference_T) * thermal_expansivity;
 
-          // calculate composition dependence of density
-          const double delta_rho = this->introspection().compositional_name_exists("peridotite")
-                                   ?
-                                   depletion_density_change * in.composition[i][this->introspection().compositional_index_for_name("peridotite")]
-                                   :
-                                   0.0;
-          out.densities[i] = (reference_rho_s + delta_rho) * temperature_dependence
-                             * std::exp(compressibility * (in.pressure[i] - this->get_surface_pressure()));
+          // // calculate composition dependence of density
+          // const double delta_rho = this->introspection().compositional_name_exists("peridotite")
+          //                          ?
+          //                          depletion_density_change * in.composition[i][this->introspection().compositional_index_for_name("peridotite")]
+          //                          :
+          //                          0.0;
+          // out.densities[i] = (reference_rho_s + delta_rho) * temperature_dependence
+          //                    * std::exp(compressibility * (in.pressure[i] - this->get_surface_pressure()));
+
+          // keep density constant for now
+          out.densities[i] = reference_rho_s;
 
           out.viscosities[i] = eta_0;
           // By default, no melting or freezing --> set all reactions to zero
@@ -274,28 +353,76 @@ namespace aspect
                   // 4 compositional fields need to be involved.
                   // To calculate the the bulk concentration,
                   // we take old_porosity as old fraction of melt.
-                  const double eq_melt_fraction = melt_fraction
-                  (
-                    in.temperature[i],
-                    this->get_adiabatic_conditions().pressure(in.position[i]),
-                    old_porosity[i],
-                    in.composition[i][peridotite_solid_idx],
-                    in.composition[i][carbonated_peridotite_solid_idx],
-                    in.composition[i][peridotite_liquid_idx],
-                    in.composition[i][carbonated_peridotite_liquid_idx]
-                  );
+                  const double per_bulk = (1 - old_porosity[i]) * in.composition[i][peridotite_solid_idx]
+                                        + old_porosity[i] * in.composition[i][carbonated_peridotite_solid_idx];
+                  const double c_per_bulk = (1 - old_porosity[i]) * in.composition[i][peridotite_liquid_idx]
+                                          + old_porosity[i] * in.composition[i][carbonated_peridotite_liquid_idx];
+                  const double eq_melt_fraction = solve_eq_melt_fraction(in.temperature[i],
+                                                                this->get_adiabatic_conditions().pressure(in.position[i]), // why not in.pressure[i]?
+                                                                old_porosity[i],
+                                                                per_bulk,
+                                                                c_per_bulk);
 
                   double porosity_change = eq_melt_fraction - old_porosity[i];
                   // do not allow negative porosity
                   if (old_porosity[i] + porosity_change < 0)
                     porosity_change = -old_porosity[i];
+                  
+                  double peridotite_solid_change = calculate_concentration_solid (per_bulk,
+                                                                                  eq_melt_fraction,
+                                                                                  equilibrium_constant (in.pressure[i],
+                                                                                                        in.temperature[i],
+                                                                                                        latent_heat_peridotite,
+                                                                                                        tuning_parameter_peridotite,
+                                                                                                        melting_point_0_peridotite))
+                                                 - in.composition[i][peridotite_solid_idx];
+                  double carbonated_peridotite_solid_change = calculate_concentration_solid (per_bulk,
+                                                                                             eq_melt_fraction,
+                                                                                             equilibrium_constant (in.pressure[i],
+                                                                                                                   in.temperature[i],
+                                                                                                                   latent_heat_carbonated_peridotite,
+                                                                                                                   tuning_parameter_carbonated_peridotite,
+                                                                                                                   melting_point_0_carbonated_peridotite))
+                                                            - in.composition[i][carbonated_peridotite_solid_idx];
+                  double peridotite_liquid_change = calculate_concentration_liquid (c_per_bulk,
+                                                                                    eq_melt_fraction,
+                                                                                    equilibrium_constant (in.pressure[i],
+                                                                                                          in.temperature[i],
+                                                                                                          latent_heat_peridotite,
+                                                                                                          tuning_parameter_peridotite,
+                                                                                                          melting_point_0_peridotite))
+                                                  - in.composition[i][peridotite_liquid_idx];
+                  double carbonated_peridotite_liquid_change = calculate_concentration_liquid (c_per_bulk,
+                                                                                               eq_melt_fraction,
+                                                                                               equilibrium_constant (in.pressure[i],
+                                                                                                                     in.temperature[i],
+                                                                                                                     latent_heat_carbonated_peridotite,
+                                                                                                                     tuning_parameter_carbonated_peridotite,
+                                                                                                                     melting_point_0_carbonated_peridotite))
+                                                             - in.composition[i][carbonated_peridotite_liquid_idx];
+                  
+                  if (in.composition[i][peridotite_solid_idx] + peridotite_solid_change < 0)
+                    peridotite_solid_change = -in.composition[i][peridotite_solid_idx];
+                  if (in.composition[i][carbonated_peridotite_solid_idx] + carbonated_peridotite_solid_change < 0)
+                    carbonated_peridotite_solid_change = -in.composition[i][carbonated_peridotite_solid_idx];
+                  if (in.composition[i][peridotite_liquid_idx] + peridotite_liquid_change < 0)
+                    peridotite_liquid_change = -in.composition[i][peridotite_liquid_idx];
+                  if (in.composition[i][carbonated_peridotite_liquid_idx] + carbonated_peridotite_liquid_change < 0)
+                    carbonated_peridotite_liquid_change = -in.composition[i][carbonated_peridotite_liquid_idx];
 
+                  // calculate the change of compositional fields
                   for (unsigned int c = 0; c < in.composition[i].size(); ++c)
                     {
-                      if (c == peridotite_idx && this->get_timestep_number() > 1)
-                        out.reaction_terms[i][c] = porosity_change - in.composition[i][peridotite_idx] * trace_strain_rate * this->get_timestep();
-                      else if (c == porosity_idx && this->get_timestep_number() > 1)
+                      if (c == porosity_idx && this->get_timestep_number() > 1)
                         out.reaction_terms[i][c] = porosity_change * out.densities[i] / this->get_timestep();
+                      else if (c == peridotite_solid_idx && this->get_timestep_number() > 1)
+                        out.reaction_terms[i][c] = peridotite_solid_change / this->get_timestep();
+                      else if (c == carbonated_peridotite_solid_idx && this->get_timestep_number() > 1)
+                        out.reaction_terms[i][c] = carbonated_peridotite_solid_change / this->get_timestep();
+                      else if (c == peridotite_liquid_idx && this->get_timestep_number() > 1)
+                        out.reaction_terms[i][c] = peridotite_liquid_change / this->get_timestep();
+                      else if (c == carbonated_peridotite_liquid_idx && this->get_timestep_number() > 1)
+                        out.reaction_terms[i][c] = carbonated_peridotite_liquid_change / this->get_timestep();
                       else
                         out.reaction_terms[i][c] = 0.0;
 
@@ -304,25 +431,30 @@ namespace aspect
                         {
                           if (reaction_rate_out != nullptr)
                             {
-                              if (c == peridotite_idx && this->get_timestep_number() > 0)
-                                reaction_rate_out->reaction_rates[i][c] = porosity_change / melting_time_scale - in.composition[i][peridotite_idx] * trace(in.strain_rate[i]);
-                              else if (c == porosity_idx && this->get_timestep_number() > 0)
+                              if (c == porosity_idx && this->get_timestep_number() > 0)
                                 reaction_rate_out->reaction_rates[i][c] = porosity_change / melting_time_scale;
+                              else if (c == peridotite_solid_idx && this->get_timestep_number() > 0)
+                                reaction_rate_out->reaction_rates[i][c] = peridotite_solid_change / melting_time_scale;
+                              else if (c == carbonated_peridotite_solid_idx && this->get_timestep_number() > 0)
+                                reaction_rate_out->reaction_rates[i][c] = carbonated_peridotite_liquid_change / melting_time_scale;
+                              else if (c == peridotite_liquid_idx && this->get_timestep_number() > 0)
+                                reaction_rate_out->reaction_rates[i][c] = peridotite_liquid_change / melting_time_scale;
+                              else if (c == carbonated_peridotite_liquid_idx && this->get_timestep_number() > 0)
+                                reaction_rate_out->reaction_rates[i][c] = carbonated_peridotite_liquid_change / melting_time_scale;
                               else
                                 reaction_rate_out->reaction_rates[i][c] = 0.0;
                             }
                           out.reaction_terms[i][c] = 0.0;
                         }
                     }
-
-                  // find depletion = peridotite, which might affect shear viscosity:
-                  const double depletion_visc = std::min(1.0, std::max(in.composition[i][peridotite_idx], 0.0));
-
-                  // calculate strengthening due to depletion:
-                  const double depletion_strengthening = std::min(std::exp(alpha_depletion * depletion_visc), delta_eta_depletion_max);
-
-                  // calculate viscosity change due to local melt and depletion:
-                  out.viscosities[i] *= depletion_strengthening;
+                  
+                  // There is no depletion in the current implementation
+                  // // find depletion = peridotite, which might affect shear viscosity:
+                  // const double depletion_visc = std::min(1.0, std::max(in.composition[i][peridotite_idx], 0.0));
+                  // // calculate strengthening due to depletion:
+                  // const double depletion_strengthening = std::min(std::exp(alpha_depletion * depletion_visc), delta_eta_depletion_max);
+                  // // calculate viscosity change due to local melt and depletion:
+                  // out.viscosities[i] *= depletion_strengthening;
                 }
             }
 

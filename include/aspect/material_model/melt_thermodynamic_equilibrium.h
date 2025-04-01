@@ -222,13 +222,25 @@ namespace aspect
 
         virtual
         double
-        melt_fraction (const double temperature,
-                       const double pressure,
-                       const double old_melt_fraction,
-                       const double per_sol,
-                       const double c_per_sol,
-                       const double per_liq,
-                       const double c_per_liq) const;
+        solve_eq_melt_fraction (const double temperature,
+                                const double pressure,
+                                const double old_melt_fraction,
+                                const double per_bulk,
+                                const double c_per_bulk) const;
+        
+        virtual
+        double
+        calculate_concentration_solid (const double c_bulk,
+                                       const double f, // melt fraction
+                                       const double eq_const // equilibrium constant
+                                       ) const;
+        virtual
+        double
+        calculate_concentration_liquid (const double c_bulk,
+                                       const double f, // melt fraction
+                                       const double eq_const // equilibrium constant
+                                       ) const;
+
 
     };
 
