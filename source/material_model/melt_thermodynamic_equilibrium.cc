@@ -436,54 +436,54 @@ namespace aspect
                              "in output instead of seconds'' parameter.");
         
           prm.declare_entry ("Melting point for peridotite at surface", // name
-                             "", // default value
+                             "1915.15", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\kelvin}" // description
                             )
           prm.declare_entry ("Melting point for carbonated peridotite at surface", // name
-                             "", // default value
+                             "713.56", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\kelvin}" // description
                             )
           prm.declare_entry ("Melting line coefficient A for peridotite", // name
-                             "", // default value
+                             "40.86e-9", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\kelvin\\per\\pascal}" // description
                             )  
           prm.declare_entry ("Melting line coefficient A for carbonated peridotite", // name
-                             "", // default value
+                             "21.38e-9", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\kelvin\\per\\pascal}" // description
                             ) 
           prm.declare_entry ("Melting line coefficient B for peridotite", // name
-                             "", // default value
+                             "-0.92e-18", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\kelvin\\per\\pascal\\square}" // description
                             )
           prm.declare_entry ("Melting line coefficient B for carbonated peridotite", // name
-                             "", // default value
+                             "-0.73e-18", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\kelvin\\per\\pascal\\square}" // description
                             )  
           prm.declare_entry ("Latent heat for peridotite", // name
-                             "", // default value
+                             "500000", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\joule\\per\\kilogram}" // description
                             )
           prm.declare_entry ("Latent heat for carbonated peridotite", // name
-                             "", // default value
+                             "350000", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\joule\\per\\kilogram}" // description
                             )
           prm.declare_entry ("Tuning parameter for peridotit", // name
-                             "", // default value
+                             "50", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}" // description
                             )  
           prm.declare_entry ("Tuning parameter for carbonated peridotite", // name
-                             "", // default value
+                             "30", // default value
                              Patterns::Double (0.), // pattern
-                             "" // description
+                             "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}" // description
                             )                                                                                                       
         }
         prm.leave_subsection();
