@@ -98,7 +98,7 @@ namespace aspect
     equilibrium_constant (const double pressure,
                           const double temperature,
                           const double latent_heat,
-                          const double tuning_parameter
+                          const double tuning_parameter,
                           const double _T_m) const
     {
       // K = exp((L / r) * (1 / T - 1 / T_m))
@@ -493,52 +493,52 @@ namespace aspect
                              "1915.15", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\kelvin}" // description
-                            )
+                            );
           prm.declare_entry ("Melting point for carbonated peridotite at surface", // name
                              "713.56", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\kelvin}" // description
-                            )
+                            );
           prm.declare_entry ("Melting line coefficient A for peridotite", // name
                              "40.86e-9", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal}" // description
-                            )  
+                            );
           prm.declare_entry ("Melting line coefficient A for carbonated peridotite", // name
                              "21.38e-9", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal}" // description
-                            ) 
+                            );
           prm.declare_entry ("Melting line coefficient B for peridotite", // name
                              "-0.92e-18", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal\\square}" // description
-                            )
+                            );
           prm.declare_entry ("Melting line coefficient B for carbonated peridotite", // name
                              "-0.73e-18", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal\\square}" // description
-                            )  
+                            );  
           prm.declare_entry ("Latent heat for peridotite", // name
                              "500000", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\joule\\per\\kilogram}" // description
-                            )
+                            );
           prm.declare_entry ("Latent heat for carbonated peridotite", // name
                              "350000", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\joule\\per\\kilogram}" // description
-                            )
+                            );
           prm.declare_entry ("Tuning parameter for peridotite", // name
                              "50", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}" // description
-                            )  
+                            );  
           prm.declare_entry ("Tuning parameter for carbonated peridotite", // name
                              "30", // default value
                              Patterns::Double (0.), // pattern
                              "Units: \\si{\\joule\\per\\kelvin\\per\\kilogram}" // description
-                            )                                                                                                       
+                            );                                                                                                       
         }
         prm.leave_subsection();
       }

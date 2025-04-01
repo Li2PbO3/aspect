@@ -210,14 +210,14 @@ namespace aspect
         temperature_melting (const double pressure,
                              const double temperature_m_0,
                              const double coefficient_A,
-                             const double coefficient_B) const
+                             const double coefficient_B) const;
 
         virtual
         double
         equilibrium_constant (const double pressure,
                               const double temperature,
                               const double latent_heat,
-                              const double tuning_parameter
+                              const double tuning_parameter,
                               const double _T_m) const;
 
         virtual
