@@ -135,6 +135,9 @@ namespace aspect
         double thermal_conductivity;       
         bool include_melting_and_freezing;
         double melting_time_scale;
+        
+        // select a method to solve the equilibrium 
+        std::string equilibrium_solving_method;
 
         // quantities about melting process
 
@@ -214,11 +217,28 @@ namespace aspect
 
         virtual
         double
-        equilibrium_constant (const double pressure,
+        equilibrium_constant (/* const double pressure, */
                               const double temperature,
                               const double latent_heat,
                               const double tuning_parameter,
                               const double _T_m) const;
+        // we already use the pressure while calculating the melting point
+        // so we don't need to pass it again
+        
+        // seems like it's going to be helpful to declare a pair of functions
+        // to calculate the solidus and liquidus temperature
+        virtual
+        double
+        find_solidus (const std::vector<double>& melting_points,
+                      const std::vector<double>& bulk_concentrations,
+                      const std::vector<double>& latent_heats,
+                      const std::vector<double>& tuning_parameters) const;
+        virtual
+        double
+        find_liquidus (const std::vector<double>& melting_points,
+                       const std::vector<double>& bulk_concentrations,
+                       const std::vector<double>& latent_heats,
+                       const std::vector<double>& tuning_parameters) const;
 
         virtual
         double
@@ -240,6 +260,52 @@ namespace aspect
                                        const double f, // melt fraction
                                        const double eq_const // equilibrium constant
                                        ) const;
+
+        // i decide to define my own solvers to find roots
+        // of equations, because i have no idea how to use the root finding method in deal.ii
+
+        // this is a bisection method
+        double
+        bisection (const std::function<double(const double)> &f,
+              const double lower_bound,
+              const double upper_bound,
+              const unsigned int max_iter = 1000,
+              const double tolerance = 1e-10) const
+        {
+          double a = lower_bound;
+          double b = upper_bound;
+
+          // // Check if the initial bounds are valid
+          // if (f(a) * f(b) >= 0)
+          // {
+          //   // throw std::invalid_argument("The function must have opposite signs at the bounds.");
+          //   AssertThrow(false,
+          //               ExcMessage("The function must have opposite signs at the bounds."));
+          //   return 0.5 * (a + b);
+          // }
+
+          double c = 0.0;
+          for (unsigned int i = 0; i < max_iter; ++i)
+          {
+            // Perform checks during the iteration
+            if (f(a) * f(b) > 0)
+            {
+              AssertThrow(false,
+                    ExcMessage("The new bounds do not make the function have opposite signs."));
+              return 0.5 * (a + b);
+            }
+            c = (a + b) / 2.0;
+            if (f(c) == 0.0)
+            break;
+            else if (f(c) * f(a) < 0)
+            b = c;
+            else
+            a = c;
+            if (fabs(f(c)) < tolerance)
+            break;
+          }
+          return c;
+        } 
 
 
     };

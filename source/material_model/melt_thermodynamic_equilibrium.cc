@@ -95,7 +95,7 @@ namespace aspect
     template <int dim>
     double
     MeltThermodynamicEquilibrium<dim>::
-    equilibrium_constant (const double pressure,
+    equilibrium_constant (/* const double pressure, */
                           const double temperature,
                           const double latent_heat,
                           const double tuning_parameter,
@@ -110,6 +110,101 @@ namespace aspect
     template <int dim>
     double
     MeltThermodynamicEquilibrium<dim>::
+    find_solidus (const std::vector<double>& melting_points,
+                  const std::vector<double>& bulk_concentrations,
+                  const std::vector<double>& latent_heats,
+                  const std::vector<double>& tuning_parameters) const
+    {
+      bool size_is_matching = (melting_points.size() == bulk_concentrations.size()
+                          && melting_points.size() == latent_heats.size()
+                          && melting_points.size() == tuning_parameters.size());
+      AssertThrow(size_is_matching,
+        ExcMessage("The sizes of the input vectors do not match."
+                   "while calculating the solidus temperature."));
+      auto solidus_equation = [&] (const double temp_solidus)
+        {
+          std::vector<double> eq_consts(melting_points.size());
+          unsigned int comp_idx = 0;
+          for (comp_idx = 0; comp_idx < melting_points.size(); ++comp_idx)
+            {
+              eq_consts[comp_idx] = equilibrium_constant(/* const double pressure, */
+                                                  temp_solidus,
+                                                  latent_heats[comp_idx],
+                                                  tuning_parameters[comp_idx],
+                                                  melting_points[comp_idx]);
+            }
+          double sum = 0.0;
+          for (comp_idx = 0; comp_idx < melting_points.size(); ++comp_idx) 
+            {
+              sum += bulk_concentrations[comp_idx] / eq_consts[comp_idx];
+            }
+          return sum - 1;
+        };
+      
+      // now we are going to find the root of the solidus_equation
+      // we can use the bisection method to find the root
+      // we need to guess the upper and lower bounds of the root
+      // to make sure we contain the root, make the interval larger
+      // on both sides with a shift
+      const double shift = 100.0;
+      const double lower_bound = *std::min_element(melting_points.begin(), melting_points.end()) - shift;
+      const double upper_bound = *std::max_element(melting_points.begin(), melting_points.end()) + shift;
+      return bisection(solidus_equation,
+                       lower_bound,
+                       upper_bound);
+
+    }
+
+    template <int dim>
+    double
+    MeltThermodynamicEquilibrium<dim>::
+    find_liquidus (const std::vector<double>& melting_points,
+                   const std::vector<double>& bulk_concentrations,
+                   const std::vector<double>& latent_heats,
+                   const std::vector<double>& tuning_parameters) const
+    {
+      bool size_is_matching = (melting_points.size() == bulk_concentrations.size()
+                          && melting_points.size() == latent_heats.size()
+                          && melting_points.size() == tuning_parameters.size());
+      AssertThrow(size_is_matching,
+        ExcMessage("The sizes of the input vectors do not match."
+                   "while calculating the liquidus temperature."));
+      auto liquidus_equation = [&] (const double temp_liquidus)
+        {
+          std::vector<double> eq_consts(melting_points.size());
+          unsigned int comp_idx = 0;
+          for (comp_idx = 0; comp_idx < melting_points.size(); ++comp_idx)
+            {
+              eq_consts[comp_idx] = equilibrium_constant(/* const double pressure, */
+                                                  temp_liquidus,
+                                                  latent_heats[comp_idx],
+                                                  tuning_parameters[comp_idx],
+                                                  melting_points[comp_idx]);
+            }
+          double sum = 0.0;
+          for (comp_idx = 0; comp_idx < melting_points.size(); ++comp_idx) 
+            {
+              sum += bulk_concentrations[comp_idx] * eq_consts[comp_idx];
+            }
+          return sum - 1;
+        };
+      
+      // now we are going to find the root of the liquidus_equation
+      // we can use the bisection method to find the root
+      // we need to guess the upper and lower bounds of the root
+      // to make sure we contain the root, make the interval larger
+      // on both sides with a shift
+      const double shift = 100.0;
+      const double lower_bound = *std::min_element(melting_points.begin(), melting_points.end()) - shift;
+      const double upper_bound = *std::max_element(melting_points.begin(), melting_points.end()) + shift;
+      return bisection(liquidus_equation,
+                       lower_bound,
+                       upper_bound);
+    }
+
+    template <int dim>
+    double
+    MeltThermodynamicEquilibrium<dim>::
     solve_eq_melt_fraction (const double temperature,
                    const double pressure,
                    const double old_melt_fraction,
@@ -117,20 +212,20 @@ namespace aspect
                    const double c_per_bulk) const
     {
       double inner_melt_fraction = 0.0;
-      double melting_point_per = temperature_melting(pressure,
+      const double melting_point_per = temperature_melting(pressure,
                                                   melting_point_0_peridotite,
                                                   melting_line_coefficient_A_peridotite,
                                                   melting_line_coefficient_B_peridotite);
-      double melting_point_c_per = temperature_melting(pressure,
+      const double melting_point_c_per = temperature_melting(pressure,
                                                   melting_point_0_carbonated_peridotite,
                                                   melting_line_coefficient_A_carbonated_peridotite,
                                                   melting_line_coefficient_B_carbonated_peridotite);
-      double equilibrium_constant_per = equilibrium_constant(pressure,
+      const double equilibrium_constant_per = equilibrium_constant(/* const double pressure, */
                                                   temperature,
                                                   latent_heat_peridotite,
                                                   tuning_parameter_peridotite,
                                                   melting_point_per);
-      double equilibrium_constant_c_per = equilibrium_constant(pressure,
+      const double equilibrium_constant_c_per = equilibrium_constant(/* const double pressure, */
                                                   temperature,
                                                   latent_heat_carbonated_peridotite,
                                                   tuning_parameter_carbonated_peridotite,
@@ -139,6 +234,70 @@ namespace aspect
       // now we are going to describe an equation about the melt fraction "f"
       // and find its root as the melt fraction
       // we gonna difine a lambda function and use the methods in deal.ii
+      // it's a pity that i can't find how to use the root finding method in deal.ii
+      // so let's just implement the bisection method with fundamental funcitions
+      // in std library
+
+      // first we need to define some lambda functions
+      auto f_eq_equation = [&](const double f_eq)
+      {
+        // this is the function whose root we want to find
+        return + calculate_concentration_solid (per_bulk, f_eq, equilibrium_constant_per)
+               + calculate_concentration_solid (c_per_bulk, f_eq, equilibrium_constant_c_per)
+               - calculate_concentration_liquid(per_bulk, f_eq, equilibrium_constant_per)
+               - calculate_concentration_liquid(c_per_bulk, f_eq, equilibrium_constant_c_per);
+      };
+
+      // before we actually solving the equation
+      // we'd better check if the temperature is between the solidus and liquidus
+      // we need to define the value vector which is need 
+      // by the find_solidus function and find_liquidus function
+      const std::vector<double> _melting_points = {melting_point_per, melting_point_c_per};
+      const std::vector<double> _bulk_concentrations = {per_bulk, c_per_bulk};
+      const std::vector<double> _latent_heats = {latent_heat_peridotite, latent_heat_carbonated_peridotite};
+      const std::vector<double> _tuning_parameters = {tuning_parameter_peridotite, tuning_parameter_carbonated_peridotite};
+      const double solidus = find_solidus(_melting_points,
+                                          _bulk_concentrations,
+                                          _latent_heats,
+                                          _tuning_parameters);
+      const double liquidus = find_liquidus(_melting_points,
+                                            _bulk_concentrations,
+                                            _latent_heats,
+                                            _tuning_parameters);
+
+      // there is another way to check whether the state is between the solidus and liquidus
+      // we can calculate the value of f_eq_equation at f_eq = 0.0 and f_eq = 1.0
+      // if both values are positive, the state is all solid
+      // if both values are negative, the state is all liquid
+      // if one value is positive and the other is negative, the state is between the solidus and liquidus
+      // we are not going to implement this method yet because it has not been tested
+      // we need to check if f_eq_equation is a monotonically increasing function
+
+      // now we can check if the temperature is between the solidus and liquidus
+      const bool is_all_solid = (temperature < solidus);
+      const bool is_all_liquid = (temperature > liquidus);
+      if (is_all_solid)
+        {
+          // this is a solid state
+          return 0.0;
+        }
+      else if (is_all_liquid)
+        {
+          // this is a liquid state
+          return 1.0;
+        }
+      
+      // we need to guess the upper and lower bounds of the root
+      const double shift = 0.1;
+      const double lower_bound = 0.0 - shift;
+      const double upper_bound = 1.0 + shift;
+      inner_melt_fraction = bisection(f_eq_equation,
+                                      lower_bound,
+                                      upper_bound);
+      // we need to check if the root is between 0 and 1
+      AssertThrow(inner_melt_fraction >= 0.0 && inner_melt_fraction <= 1.0,
+        ExcMessage("The root finder find the melt fraction."
+                   "However The melt fraction is not between 0 and 1."));
 
       return inner_melt_fraction;
     }
@@ -370,7 +529,7 @@ namespace aspect
                   
                   double peridotite_solid_change = calculate_concentration_solid (per_bulk,
                                                                                   eq_melt_fraction,
-                                                                                  equilibrium_constant (in.pressure[i],
+                                                                                  equilibrium_constant (/* const double pressure, */
                                                                                                         in.temperature[i],
                                                                                                         latent_heat_peridotite,
                                                                                                         tuning_parameter_peridotite,
@@ -378,7 +537,7 @@ namespace aspect
                                                  - in.composition[i][peridotite_solid_idx];
                   double carbonated_peridotite_solid_change = calculate_concentration_solid (per_bulk,
                                                                                              eq_melt_fraction,
-                                                                                             equilibrium_constant (in.pressure[i],
+                                                                                             equilibrium_constant (/* const double pressure, */
                                                                                                                    in.temperature[i],
                                                                                                                    latent_heat_carbonated_peridotite,
                                                                                                                    tuning_parameter_carbonated_peridotite,
@@ -386,7 +545,7 @@ namespace aspect
                                                             - in.composition[i][carbonated_peridotite_solid_idx];
                   double peridotite_liquid_change = calculate_concentration_liquid (c_per_bulk,
                                                                                     eq_melt_fraction,
-                                                                                    equilibrium_constant (in.pressure[i],
+                                                                                    equilibrium_constant (/* const double pressure, */
                                                                                                           in.temperature[i],
                                                                                                           latent_heat_peridotite,
                                                                                                           tuning_parameter_peridotite,
@@ -394,7 +553,7 @@ namespace aspect
                                                   - in.composition[i][peridotite_liquid_idx];
                   double carbonated_peridotite_liquid_change = calculate_concentration_liquid (c_per_bulk,
                                                                                                eq_melt_fraction,
-                                                                                               equilibrium_constant (in.pressure[i],
+                                                                                               equilibrium_constant (/* const double pressure, */
                                                                                                                      in.temperature[i],
                                                                                                                      latent_heat_carbonated_peridotite,
                                                                                                                      tuning_parameter_carbonated_peridotite,
@@ -592,6 +751,11 @@ namespace aspect
                                   Patterns::Double (0.),
                                   "The value of the compressibility of the melt. "
                                   "Units: \\si{\\per\\pascal}.");
+          
+          prm.declare_entry ("Equilibrium solving method", "bisection",
+                             Patterns::Selection ("bisection|newton"),
+                             "The method used to solve the equation for the melt fraction. "
+                             "Either bisection or newton.");
 
           prm.declare_entry ("Thermal conductivity", "4.7",
                              Patterns::Double (0.),
@@ -859,6 +1023,8 @@ namespace aspect
           include_melting_and_freezing      = prm.get_bool ("Include melting and freezing");
           melting_time_scale                = prm.get_double ("Melting time scale for operator splitting");
 
+          equilibrium_solving_method = prm.get ("Equilibrium solving method");
+
           melting_point_0_peridotite = prm.get_double ("Melting point for peridotite at surface");
           melting_point_0_carbonated_peridotite = prm.get_double ("Melting point for carbonated peridotite at surface");
           melting_line_coefficient_A_peridotite = prm.get_double ("Melting line coefficient A for peridotite");
@@ -914,7 +1080,13 @@ namespace aspect
                                          "compositional field called carbonated_peridotite_liquid."));
                 }
             }
-
+          
+          if (equilibrium_solving_method != "bisection")
+            {
+              AssertThrow(false, ExcMessage(
+                "Error: Material model Melt thermodynamic equilibrium currently only supports bisection method to solve equations."
+                "please set the parameter 'Equilibrium solving method' to 'bisection'."));
+            }
         }
         prm.leave_subsection();
       }
