@@ -797,22 +797,22 @@ namespace aspect
                             );
           prm.declare_entry ("Melting line coefficient A for peridotite", // name
                              "40.86e-9", // default value
-                             Patterns::Double (0.), // pattern
+                             Patterns::Double (), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal}" // description
                             );
           prm.declare_entry ("Melting line coefficient A for carbonated peridotite", // name
                              "21.38e-9", // default value
-                             Patterns::Double (0.), // pattern
+                             Patterns::Double (), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal}" // description
                             );
           prm.declare_entry ("Melting line coefficient B for peridotite", // name
                              "-0.92e-18", // default value
-                             Patterns::Double (0.), // pattern
+                             Patterns::Double (), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal\\square}" // description
                             );
           prm.declare_entry ("Melting line coefficient B for carbonated peridotite", // name
                              "-0.73e-18", // default value
-                             Patterns::Double (0.), // pattern
+                             Patterns::Double (), // pattern
                              "Units: \\si{\\kelvin\\per\\pascal\\square}" // description
                             );  
           prm.declare_entry ("Latent heat for peridotite", // name
