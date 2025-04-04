@@ -26,7 +26,12 @@
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/numerics/fe_field_function.h>
 
-
+// to use pcout for debugging output
+#include <aspect/simulator.h>
+namespace
+{
+  const bool local_debug = true;
+}
 
 namespace aspect
 {
